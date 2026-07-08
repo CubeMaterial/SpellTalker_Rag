@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>SpellTalker Design Agent</h1>
+  <p class="muted">로컬 LLM과 RAG로 Markdown 기획 문서를 정리하는 웹 UI입니다.</p>
+  <dl class="meta">
+    <dt>문서 작업공간</dt>
+    <dd>{{ settings.docs_workspace }}</dd>
+    <dt>Source Docs</dt>
+    <dd>{{ settings.source_docs }}</dd>
+    <dt>ChromaDB</dt>
+    <dd>{{ settings.chroma_path }}</dd>
+  </dl>
+</section>
+
+<section class="actions">
+  <a class="card-link" href="/docs">문서 목록 보기</a>
+  <a class="card-link" href="/chat">기획 대화 시작</a>
+  <form method="post" action="/build-gdd-from-source"><button type="submit">GDD 생성</button></form>
+  <form method="post" action="/index"><button type="submit">문서 인덱싱</button></form>
+  <form method="post" action="/check"><button type="submit">일관성 검사</button></form>
+</section>
+{% endblock %}
+

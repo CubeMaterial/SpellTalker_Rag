@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpellTalker Design Agent</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">SpellTalker<br><span>Design Agent</span></div>
+    <nav>
+      <a class="{{ 'active' if active == 'home' else '' }}" href="/">Home</a>
+      <a class="{{ 'active' if active == 'chat' else '' }}" href="/chat">Chat</a>
+      <a class="{{ 'active' if active == 'docs' else '' }}" href="/docs">Documents</a>
+      <form method="post" action="/build-gdd-from-source"><button type="submit">Build GDD</button></form>
+      <form method="post" action="/index"><button type="submit">Index</button></form>
+      <form method="post" action="/check"><button type="submit">Check</button></form>
+      <a class="{{ 'active' if active == 'diff' else '' }}" href="/diff">Pending Diff</a>
+    </nav>
+  </aside>
+  <main class="main">
+    {% if flash_message %}
+      <div class="flash">{{ flash_message }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
+

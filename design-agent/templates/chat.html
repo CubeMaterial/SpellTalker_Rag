@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="chat-layout" data-session-id="{{ conversation.session_id }}">
+  <aside class="panel conversation-list">
+    <div class="button-row spread">
+      <h1>대화</h1>
+      <form method="post" action="/chat/new"><button type="submit">새 대화</button></form>
+    </div>
+    {% for item in sessions %}
+      <div class="conversation-row {{ 'selected' if item.session_id == conversation.session_id else '' }}">
+        <a class="conversation-item" href="/chat/{{ item.session_id }}">
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.updated_at }} · {{ item.message_count }} messages</span>
+        </a>
+        <form method="post" action="/chat/{{ item.session_id }}/delete" onsubmit="return confirm('정말 이 대화를 삭제하시겠습니까?');">
+          <button type="submit" class="delete-button">삭제</button>
+        </form>
+      </div>
+    {% endfor %}
+    {% if sessions %}
+      <form class="delete-all-form" method="post" action="/chat/delete-all" onsubmit="return confirm('모든 대화 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.');">
+        <button type="submit" class="danger-button">전체 대화 삭제</button>
+      </form>
+    {% endif %}
+  </aside>
+
+  <main class="panel chat-panel">
+    <h1>문서 기반 대화형 기획 Agent</h1>
+    <div id="messages" class="messages">
+      {% for message in conversation.messages %}
+        <article class="message {{ message.role }}">
+          <div class="message-role">{{ "User" if message.role == "user" else "Agent" }}</div>
+          <pre>{{ message.content }}</pre>
+        </article>
+      {% endfor %}
+      {% if not conversation.messages %}
+        <p class="muted">현재 상태, 미완성 항목, 새 아이디어의 충돌 여부를 물어보세요. 저장이 필요할 때만 문서 반영 모드를 켜거나 "문서에 반영해줘"라고 입력하면 됩니다.</p>
+      {% endif %}
+    </div>
+
+    {% if session_pending %}
+      <section class="pending-box">
+        <h2>Pending Change</h2>
+        <p>{{ session_pending.summary }}</p>
+        <pre class="diff">{{ session_pending.diff or "diff 정보가 없습니다." }}</pre>
+        <div class="button-row">
+          <form method="post" action="/chat/{{ conversation.session_id }}/apply"><button type="submit">승인 저장</button></form>
+          <form method="post" action="/chat/{{ conversation.session_id }}/discard"><button class="secondary" type="submit">폐기</button></form>
+        </div>
+      </section>
+    {% endif %}
+
+    <form id="chat-form" class="stack">
+      <input type="hidden" name="session_id" value="{{ conversation.session_id }}">
+      <label for="message">메시지</label>
+      <textarea id="message" name="message" placeholder="현재 어디까지 했어?"></textarea>
+      <label class="check-row">
+        <input type="checkbox" name="write_mode" value="true">
+        문서 반영 모드
+      </label>
+      <button type="submit">전송</button>
+    </form>
+  </main>
+</section>
+{% endblock %}

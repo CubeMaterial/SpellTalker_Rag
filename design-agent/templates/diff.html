@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Diff 확인</h1>
+  {% if pending_change %}
+    <p class="muted">{{ pending_change.title }}</p>
+    {% if pending_change.message %}
+      <p>{{ pending_change.message }}</p>
+    {% endif %}
+    {% if pending_change.plan %}
+      <h2>변경 계획</h2>
+      <pre class="markdown">{{ pending_change.plan }}</pre>
+    {% endif %}
+    <h2>변경 파일</h2>
+    <ul>
+      {% for file in pending_change.files %}
+        <li>{{ file.path }}</li>
+      {% endfor %}
+    </ul>
+    <pre class="diff">{{ pending_change.combined_diff or "변경 diff가 없습니다." }}</pre>
+    <div class="button-row">
+      <form method="post" action="/apply"><button type="submit">저장하기</button></form>
+      <form method="post" action="/discard"><button class="secondary" type="submit">폐기하기</button></form>
+      <a class="button secondary" href="/chat">다시 수정 요청</a>
+    </div>
+  {% else %}
+    <p>대기 중인 변경 사항이 없습니다.</p>
+    <a class="button" href="/chat">기획 대화로 이동</a>
+  {% endif %}
+</section>
+{% endblock %}
+

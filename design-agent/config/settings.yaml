@@ -1,0 +1,19 @@
+llm_model: qwen3:14b
+embedding_model: nomic-embed-text
+ollama_base_url: http://localhost:11434
+
+paths:
+  docs_workspace: docs_workspace
+  source_docs: source_docs
+  chroma: storage/chroma
+  snapshots: storage/snapshots
+  reports: storage/reports
+  conversations: storage/conversations
+  pending: storage/pending
+  prompts: prompts
+
+rag:
+  collection_name: spelltalker_docs
+  chunk_size: 1400
+  chunk_overlap: 180
+  top_k: 5
