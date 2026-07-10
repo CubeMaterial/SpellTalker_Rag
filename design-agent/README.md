@@ -35,6 +35,7 @@ python main.py build-gdd-from-source
 python main.py index
 python main.py chat
 python main.py check
+python main.py desktop
 python main.py ui
 ```
 
@@ -46,7 +47,10 @@ python main.py ui
 - `python main.py chat`: 대화형 기획 정리 및 승인 기반 문서 수정
 - `python main.py check`: 문서 일관성 검사 리포트 생성
 - `python main.py snapshot`: 현재 문서 작업공간 백업
+- `python main.py desktop`: 로컬 웹 UI를 별도 데스크톱 창으로 실행
 - `python main.py ui`: 로컬 웹 UI 실행
+
+명령 없이 `python main.py`만 실행하면 기본으로 desktop 모드가 실행된다.
 
 ## 안전장치
 
@@ -79,6 +83,7 @@ python main.py ui
 - `/chat`: 세션별 대화, 상태 질문, 아이디어 충돌 검토, 명시적 문서 반영 요청 처리
 - `/diff`: 기존 단발 pending 변경 저장 또는 폐기
 - `/docs`: `docs_workspace/`, `source_docs/`, `storage/reports/` Markdown 문서 읽기 전용 보기
+- `/data`: `data_sources/` 아래 CSV를 표로 확인/수정하고 Unity용 JSON으로 export
 - `Build GDD`: `source_docs/` 기반 GDD 초안 생성
 - `Index`: 문서 인덱싱
 - `Check`: 일관성 검사 리포트 생성
@@ -89,3 +94,38 @@ python main.py ui
 - 사용자가 "문서에 반영해줘", "저장해줘", "적용해줘"처럼 명시하거나 `문서 반영 모드`를 켠 경우에만 Change Proposal Mode로 전환한다.
 - Change Proposal Mode에서는 변경 계획과 diff를 만들고, 승인 저장 전에는 실제 Markdown 파일을 덮어쓰지 않는다.
 - 대화 기록은 `storage/conversations/`, 세션별 pending diff는 `storage/pending/`에 UTF-8 JSON으로 저장된다.
+
+## CSV Data Tables
+
+캐릭터, 적, 스펠, 아이템 같은 테이블형 데이터는 `data_sources/`에 CSV로 넣는다.
+
+```txt
+data_sources/
+  characters.csv
+  enemies.csv
+  spells.csv
+  items.csv
+```
+
+웹 UI의 `/data`에서 CSV를 표로 확인하고 셀/행을 수정할 수 있다. 저장 시 중복 header, 빈/중복 `id` 같은 기본 검사를 수행한다.
+
+Unity용 JSON은 `Export Unity JSON`으로 생성한다.
+
+```txt
+exports/unity/
+  characters.json
+  enemies.json
+  spells.json
+  items.json
+```
+
+export 형식은 Unity에서 읽기 쉬운 wrapper 구조다.
+
+```json
+{
+  "table": "spells",
+  "source": "spells.csv",
+  "exported_at": "2026-07-09T12:00:00",
+  "items": []
+}
+```

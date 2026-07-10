@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.document_manager import DocumentManager
 from app.llm_client import OllamaClient
+from app.rag_service import RAGService
 from app.settings import Settings
 
 
@@ -22,6 +23,7 @@ class ConsistencyChecker:
         self.settings = settings or Settings()
         self.documents = DocumentManager(self.settings)
         self.llm = OllamaClient(self.settings)
+        self.rag = RAGService(self.settings)
 
     def run(self) -> str:
         self.settings.reports_path.mkdir(parents=True, exist_ok=True)
@@ -37,7 +39,14 @@ class ConsistencyChecker:
                     findings.append(f"- `{rel}`: {name} 의심 표현 발견: {', '.join(hits)}")
 
         prompt = self.settings.prompt("consistency_checker.md")
-        llm_report = self.llm.generate("\n\n".join(combined), prompt) if combined else ""
+        rag_rows = self.rag.search(
+            "카드 직접 승리 수단 카드 덱 룬 덱 혼합 무한 마나 무한 드로우 영구 스턴 UI 게임 규칙 Runtime ScriptableObject 충돌",
+            limit=12,
+            min_results=4,
+        )
+        rag_context = self.rag.context_text(rag_rows)
+        llm_input = f"{rag_context}\n\n## 규칙 기반 의심 항목\n{chr(10).join(findings) if findings else '- 없음'}"
+        llm_report = self.llm.generate(llm_input, prompt) if combined else ""
         if llm_report.startswith("[LLM unavailable") or not llm_report:
             llm_report = self._fallback_report(findings)
 
@@ -75,4 +84,3 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 - LLM 모델을 실행한 뒤 `python main.py check`를 다시 실행해 문맥 기반 검사를 수행합니다.
 """
-

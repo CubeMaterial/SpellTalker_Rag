@@ -11,6 +11,8 @@ paths:
   conversations: storage/conversations
   pending: storage/pending
   prompts: prompts
+  data_sources: data_sources
+  unity_exports: exports/unity
 
 rag:
   collection_name: spelltalker_docs

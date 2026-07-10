@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="docs-layout data-layout">
+  <aside class="doc-list panel">
+    <h1>CSV Tables</h1>
+    {% for item in tables %}
+      <a class="doc-item {{ 'selected' if table and item.name == table.name else '' }}" href="/data/{{ item.name }}">
+        <span>{{ item.rows }} rows</span>
+        {{ item.name }}
+      </a>
+    {% endfor %}
+    {% if not tables %}
+      <p class="muted">`data_sources/`에 CSV 파일을 넣으면 여기에 표시됩니다.</p>
+    {% endif %}
+  </aside>
+
+  <article class="doc-view panel">
+    {% if table %}
+      <div class="button-row spread">
+        <div>
+          <h1>{{ table.name }}</h1>
+          <p class="muted">{{ table.path }}</p>
+        </div>
+        <form method="post" action="/data/{{ table.name }}/export-unity">
+          <button type="submit" class="secondary">Export Unity JSON</button>
+        </form>
+      </div>
+
+      {% if table.validation.errors %}
+        <div class="data-alert error-box">
+          <strong>Errors</strong>
+          {% for error in table.validation.errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if table.validation.warnings %}
+        <div class="data-alert warning-box">
+          <strong>Warnings</strong>
+          {% for warning in table.validation.warnings %}
+            <p>{{ warning }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form id="data-table-form" method="post" action="/data/{{ table.name }}/save">
+        <input type="hidden" name="payload" id="data-payload">
+        <div class="table-toolbar">
+          <button type="button" class="secondary" id="add-data-row">Add Row</button>
+          <button type="submit">Save CSV</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table" data-headers='{{ table.headers | tojson }}'>
+            <thead>
+              <tr>
+                <th class="row-tools">Row</th>
+                {% for header in table.headers %}
+                  <th>{{ header }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in table.rows %}
+                <tr>
+                  <td class="row-tools">
+                    <button type="button" class="delete-row">Delete</button>
+                  </td>
+                  {% for header in table.headers %}
+                    <td><input type="text" value="{{ row.get(header, '') }}" data-field="{{ header }}"></td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+    {% else %}
+      <h1>Data Tables</h1>
+      <p class="muted">캐릭터, 적, 스펠, 아이템 CSV를 `data_sources/`에 넣은 뒤 왼쪽에서 선택하세요.</p>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

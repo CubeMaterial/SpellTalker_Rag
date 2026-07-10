@@ -6,21 +6,23 @@ def build_parser() -> argparse.ArgumentParser:
         prog="SpellTalker Design Agent",
         description="Local AI + RAG assistant for SpellTalker Markdown design docs.",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("init-docs", help="Create initial GDD Markdown templates.")
     subparsers.add_parser("build-gdd-from-source", help="Build GDD drafts from source_docs Markdown files.")
     subparsers.add_parser("index", help="Index Markdown documents into ChromaDB.")
     subparsers.add_parser("chat", help="Start an interactive design planning chat.")
     subparsers.add_parser("check", help="Run consistency checks and write a Markdown report.")
     subparsers.add_parser("snapshot", help="Back up docs_workspace into storage/snapshots.")
+    subparsers.add_parser("desktop", help="Run the local UI in a desktop app window.")
     subparsers.add_parser("ui", help="Run the local web UI.")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    command = args.command or "desktop"
 
-    if args.command == "init-docs":
+    if command == "init-docs":
         from app.document_manager import DocumentManager
 
         manager = DocumentManager()
@@ -30,7 +32,7 @@ def main() -> None:
             print(f"- {path}")
         return
 
-    if args.command == "snapshot":
+    if command == "snapshot":
         from app.document_manager import DocumentManager
 
         manager = DocumentManager()
@@ -38,13 +40,13 @@ def main() -> None:
         print(f"Snapshot created: {snapshot_path}")
         return
 
-    if args.command == "build-gdd-from-source":
+    if command == "build-gdd-from-source":
         from app.source_gdd_builder import SourceGddBuilder
 
         SourceGddBuilder().run()
         return
 
-    if args.command == "index":
+    if command == "index":
         from app.rag import RagStore
 
         store = RagStore()
@@ -52,20 +54,26 @@ def main() -> None:
         print(f"Indexed {count} chunk(s).")
         return
 
-    if args.command == "chat":
+    if command == "chat":
         from app.agent import DesignAgent
 
         DesignAgent().chat()
         return
 
-    if args.command == "check":
+    if command == "check":
         from app.validators import ConsistencyChecker
 
         report_path = ConsistencyChecker().run()
         print(f"Consistency report written: {report_path}")
         return
 
-    if args.command == "ui":
+    if command == "desktop":
+        from app.desktop import run_desktop
+
+        run_desktop()
+        return
+
+    if command == "ui":
         from app.web import run_web
 
         run_web()

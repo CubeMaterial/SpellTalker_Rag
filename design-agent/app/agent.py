@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from app.change_planner import ChangePlanner
 from app.document_manager import DocumentManager
-from app.rag import RagStore
+from app.rag_service import RAGService
+from app.settings import Settings
 
 
 class DesignAgent:
     def __init__(self) -> None:
-        self.rag = RagStore()
-        self.planner = ChangePlanner(self.rag.settings)
-        self.documents = DocumentManager(self.rag.settings)
+        self.settings = Settings()
+        self.rag = RAGService(self.settings)
+        self.planner = ChangePlanner(self.settings)
+        self.documents = DocumentManager(self.settings)
 
     def chat(self) -> None:
         print("SpellTalker Design Agent")
@@ -46,4 +48,3 @@ class DesignAgent:
             for path, _old, new in updates:
                 self.documents.save(path, new)
             print(f"{len(updates)}개 문서를 저장했습니다. 필요하면 `python main.py index`를 다시 실행하세요.")
-

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,9 +12,11 @@ from fastapi.templating import Jinja2Templates
 from app.change_planner import ChangePlanner
 from app.conversation_agent import ConversationAgent
 from app.conversation_store import ConversationStore, validate_session_id
+from app.data_table import DataTableManager
 from app.document_manager import DocumentManager
 from app.pending_store import PendingStore
 from app.rag import RagStore
+from app.rag_service import RAGService
 from app.settings import PROJECT_ROOT, Settings
 from app.source_gdd_builder import SourceGddBuilder
 from app.validators import ConsistencyChecker
@@ -26,6 +29,7 @@ templates = Jinja2Templates(directory=PROJECT_ROOT / "templates")
 
 settings = Settings()
 manager = DocumentManager(settings)
+data_manager = DataTableManager(settings)
 pending_change: PendingChange | None = None
 flash_message = ""
 conversation_store = ConversationStore(settings)
@@ -74,7 +78,7 @@ def safe_doc_path(raw_path: str) -> Path:
 
 
 def build_chat_pending(idea: str) -> PendingChange:
-    rag = RagStore(settings)
+    rag = RAGService(settings)
     planner = ChangePlanner(settings)
     context = rag.search(idea)
     plan = planner.create_plan(idea, context)
@@ -238,9 +242,9 @@ def apply_session_pending(session_id: str) -> RedirectResponse:
         set_flash("저장할 pending change가 없습니다.")
         return RedirectResponse(f"/chat/{session_id}", status_code=303)
     try:
+        writes = [(manager.validate_relative_save_path(str(rel)), content) for rel, content in raw.get("new_contents", {}).items()]
         snapshot = manager.snapshot_docs()
-        for rel, content in raw.get("new_contents", {}).items():
-            path = (PROJECT_ROOT / rel).resolve()
+        for path, content in writes:
             manager.save(path, content)
         pending_store.delete(session_id)
         conversation_store.add_message(
@@ -310,9 +314,10 @@ def apply_pending() -> RedirectResponse:
         pending_change = None
         return RedirectResponse("/", status_code=303)
     try:
+        writes = [(manager.validate_save_path(Path(file.path)), file.content) for file in pending_change.files]
         snapshot = manager.snapshot_docs()
-        for file in pending_change.files:
-            manager.save(Path(file.path), file.content)
+        for path, content in writes:
+            manager.save(path, content)
     except Exception as exc:
         set_flash(f"저장 실패: {exc}")
         return RedirectResponse("/diff", status_code=303)
@@ -349,6 +354,64 @@ def doc_detail(request: Request, doc_path: str) -> HTMLResponse:
         selected_path=path.relative_to(PROJECT_ROOT).as_posix(),
         selected_content=path.read_text(encoding="utf-8"),
     )
+
+
+@app.get("/data", response_class=HTMLResponse)
+def data_page(request: Request) -> HTMLResponse:
+    message = clear_flash()
+    return render(
+        request,
+        "data.html",
+        active="data",
+        flash_message=message,
+        tables=data_manager.list_tables(),
+        table=None,
+    )
+
+
+@app.get("/data/{table_name}", response_class=HTMLResponse)
+def data_table_page(request: Request, table_name: str) -> HTMLResponse:
+    try:
+        table = data_manager.load(table_name)
+    except Exception as exc:
+        set_flash(f"CSV 로드 실패: {exc}")
+        return RedirectResponse("/data", status_code=303)
+    message = clear_flash()
+    return render(
+        request,
+        "data.html",
+        active="data",
+        flash_message=message,
+        tables=data_manager.list_tables(),
+        table=table,
+    )
+
+
+@app.post("/data/{table_name}/save")
+def data_table_save(table_name: str, payload: str = Form(...)) -> RedirectResponse:
+    try:
+        data = json.loads(payload)
+        headers = [str(header) for header in data.get("headers", [])]
+        rows = data.get("rows", [])
+        if not isinstance(rows, list):
+            raise ValueError("rows payload must be a list.")
+        clean_rows = [row for row in rows if isinstance(row, dict)]
+        table = data_manager.save(table_name, headers, clean_rows)
+        set_flash(f"{table.name} 저장 완료: {len(table.rows)}개 행")
+    except Exception as exc:
+        set_flash(f"CSV 저장 실패: {exc}")
+    return RedirectResponse(f"/data/{table_name}", status_code=303)
+
+
+@app.post("/data/{table_name}/export-unity")
+def data_table_export_unity(table_name: str) -> RedirectResponse:
+    try:
+        export_path = data_manager.export_unity_json(table_name)
+        rel = export_path.relative_to(PROJECT_ROOT).as_posix()
+        set_flash(f"Unity JSON export 완료: {rel}")
+    except Exception as exc:
+        set_flash(f"Unity JSON export 실패: {exc}")
+    return RedirectResponse(f"/data/{table_name}", status_code=303)
 
 
 @app.post("/build-gdd-from-source")

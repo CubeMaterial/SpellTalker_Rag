@@ -15,10 +15,68 @@ function appendMessage(role, content) {
   messages.scrollTop = messages.scrollHeight;
 }
 
+function collectDataTablePayload(form) {
+  const table = form.querySelector(".data-table");
+  if (!table) return null;
+  const headers = JSON.parse(table.dataset.headers || "[]");
+  const rows = Array.from(table.querySelectorAll("tbody tr")).map((tr) => {
+    const row = {};
+    headers.forEach((header) => {
+      const input = tr.querySelector(`input[data-field="${CSS.escape(header)}"]`);
+      row[header] = input ? input.value : "";
+    });
+    return row;
+  });
+  return {headers, rows};
+}
+
+function createDataRow(table) {
+  const headers = JSON.parse(table.dataset.headers || "[]");
+  const tr = document.createElement("tr");
+  const tools = document.createElement("td");
+  tools.className = "row-tools";
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "delete-row";
+  deleteButton.textContent = "Delete";
+  tools.append(deleteButton);
+  tr.append(tools);
+  headers.forEach((header) => {
+    const td = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.dataset.field = header;
+    td.append(input);
+    tr.append(td);
+  });
+  return tr;
+}
+
+document.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest(".delete-row");
+  if (deleteButton) {
+    deleteButton.closest("tr")?.remove();
+    return;
+  }
+
+  if (event.target.id === "add-data-row") {
+    const table = document.querySelector(".data-table");
+    const tbody = table?.querySelector("tbody");
+    if (table && tbody) tbody.append(createDataRow(table));
+  }
+});
+
 document.addEventListener("submit", async (event) => {
   const form = event.target;
   const button = form.querySelector("button[type='submit']");
   if (!button) return;
+
+  if (form.id === "data-table-form") {
+    const payload = collectDataTablePayload(form);
+    if (payload) {
+      form.querySelector("#data-payload").value = JSON.stringify(payload);
+    }
+  }
 
   if (form.id === "chat-form") {
     event.preventDefault();

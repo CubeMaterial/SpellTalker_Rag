@@ -91,16 +91,58 @@ class RagStore:
         sections = re.split(r"(?=^##\s+)", text, flags=re.MULTILINE)
         chunks: list[str] = []
         current = ""
+        chunk_size = max(1, self.settings.chunk_size)
+        overlap = max(0, min(self.settings.chunk_overlap, chunk_size - 1))
         for section in sections:
-            if len(current) + len(section) <= self.settings.chunk_size:
+            if len(section) > chunk_size:
+                if current.strip():
+                    chunks.append(current.strip())
+                    current = self._overlap_tail(current, overlap)
+                chunks.extend(self._split_long_section(section, chunk_size, overlap))
+                current = ""
+                continue
+
+            if len(current) + len(section) <= chunk_size:
                 current += section
                 continue
             if current.strip():
                 chunks.append(current.strip())
-            current = section
+            current = self._overlap_tail(current, overlap) + section
         if current.strip():
             chunks.append(current.strip())
         return chunks or [text]
+
+    def _split_long_section(self, section: str, chunk_size: int, overlap: int) -> list[str]:
+        lines = section.splitlines(keepends=True)
+        heading = lines[0] if lines and re.match(r"^##\s+", lines[0]) else ""
+        text = "".join(lines)
+        step = max(1, chunk_size - overlap)
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(len(text), start + chunk_size)
+            if end < len(text):
+                newline = text.rfind("\n", start + max(1, chunk_size // 2), end)
+                if newline > start:
+                    end = newline + 1
+            chunk = text[start:end].strip()
+            if chunk:
+                if heading and start > 0 and not chunk.startswith(heading.strip()):
+                    chunk = heading.strip() + "\n" + chunk
+                chunks.append(chunk)
+            if end >= len(text):
+                break
+            start = max(0, end - overlap) if overlap else start + step
+        return chunks
+
+    def _overlap_tail(self, text: str, overlap: int) -> str:
+        if overlap <= 0 or not text:
+            return ""
+        tail = text[-overlap:]
+        newline = tail.find("\n")
+        if newline >= 0:
+            tail = tail[newline + 1 :]
+        return tail.rstrip() + "\n\n" if tail.strip() else ""
 
     def _title(self, text: str, path: Path) -> str:
         match = re.search(r"^#\s+(.+)$", text, re.MULTILINE)

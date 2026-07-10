@@ -39,6 +39,8 @@ class Settings:
         self.conversations_path = self._path(paths.get("conversations", "storage/conversations"))
         self.pending_path = self._path(paths.get("pending", "storage/pending"))
         self.prompts_path = self._path(paths.get("prompts", "prompts"))
+        self.data_sources_path = self._path(paths.get("data_sources", "data_sources"))
+        self.unity_exports_path = self._path(paths.get("unity_exports", "exports/unity"))
 
         rag = data.get("rag", {})
         self.collection_name = rag.get("collection_name", "spelltalker_docs")

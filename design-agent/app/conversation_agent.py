@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from app.change_planner import ChangePlanner
 from app.conversation_store import ConversationStore
 from app.document_manager import DocumentManager
-from app.document_search import DocumentSearch
 from app.intent_classifier import IntentClassifier, UserIntent
 from app.llm_client import OllamaClient
 from app.pending_store import PendingStore
-from app.settings import PROJECT_ROOT, Settings
+from app.rag_service import RAGService
+from app.settings import Settings
 from app.web_models import PendingChange, PendingFile
 
 
@@ -17,7 +15,7 @@ class ConversationAgent:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings()
         self.store = ConversationStore(self.settings)
-        self.search = DocumentSearch(self.settings)
+        self.rag = RAGService(self.settings)
         self.intent_classifier = IntentClassifier(self.settings)
         self.llm = OllamaClient(self.settings)
         self.manager = DocumentManager(self.settings)
@@ -49,16 +47,16 @@ class ConversationAgent:
 
     def _answer(self, conversation: dict, message: str, intent: UserIntent) -> str:
         if intent == UserIntent.STATUS_CHECK:
-            rows = self.search.status_context()
+            rows = self.rag.status_context()
             prompt_template = self.settings.prompt("status_check.md")
         elif intent == UserIntent.IDEA_REVIEW:
-            rows = self.search.search(message, limit=10)
+            rows = self.rag.search(message, limit=10)
             prompt_template = self.settings.prompt("idea_review.md")
         else:
-            rows = self.search.search(message, limit=10)
+            rows = self.rag.search(message, limit=10)
             prompt_template = self.settings.prompt("conversation.md")
 
-        context = self.search.context_text(rows)
+        context = self.rag.context_text(rows)
         history = self.store.history_text(conversation)
         prompt = prompt_template.format(
             user_message=message,
@@ -72,7 +70,7 @@ class ConversationAgent:
 
     def _handle_change_request(self, conversation: dict, message: str) -> tuple[str, PendingChange]:
         source_idea = self._change_source_text(conversation, message)
-        context_rows = self.search.search(source_idea, limit=10)
+        context_rows = self.rag.search(source_idea, limit=10)
         plan = self.planner.create_plan(source_idea, context_rows)
         files = []
         for target in plan["targets"]:

@@ -5,6 +5,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from app.document_modifier import DocumentModifier
 from app.settings import Settings
 
 
@@ -62,6 +63,7 @@ TODO
 class DocumentManager:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings()
+        self.modifier = DocumentModifier()
 
     def init_docs(self) -> list[Path]:
         created: list[Path] = []
@@ -92,29 +94,7 @@ class DocumentManager:
     def build_update(self, relative_path: str, idea: str, plan: str) -> tuple[Path, str, str]:
         path = self.settings.docs_workspace / relative_path
         old = path.read_text(encoding="utf-8") if path.exists() else TEMPLATE.format(title=Path(relative_path).stem)
-        today = datetime.now().strftime("%Y-%m-%d")
-        addition = f"""
-
-## Proposed Changes
-
-### {today}
-
-사용자 아이디어:
-
-> {idea}
-
-계획 요약:
-
-{plan.strip()}
-
----
-
-## Change Log
-
-### {today}
-- 사용자 승인에 따라 변경 계획 반영
-"""
-        new = self._append_change(old, addition, today)
+        new = self.modifier.modify(old, relative_path, idea, plan).content
         return path, old, new
 
     def _append_change(self, old: str, addition: str, today: str) -> str:
@@ -135,6 +115,38 @@ class DocumentManager:
         )
 
     def save(self, path: Path, content: str) -> None:
+        self.validate_save_path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
+    def validate_relative_save_path(self, raw_path: str) -> Path:
+        candidate = Path(raw_path)
+        if candidate.is_absolute():
+            raise ValueError(f"Absolute save path is not allowed: {raw_path}")
+        if ".." in candidate.parts:
+            raise ValueError(f"Parent traversal is not allowed: {raw_path}")
+        return self.validate_save_path((self.settings.docs_workspace.parent / candidate).resolve())
+
+    def validate_save_path(self, path: Path) -> Path:
+        if path.suffix.lower() != ".md":
+            raise ValueError(f"Only Markdown files can be saved: {path}")
+
+        raw_parts = path.parts
+        if ".." in raw_parts:
+            raise ValueError(f"Parent traversal is not allowed: {path}")
+
+        candidate = path.resolve()
+        allowed_root = self.settings.docs_workspace.resolve()
+        if not (candidate == allowed_root or allowed_root in candidate.parents):
+            raise ValueError(f"Save path is outside docs_workspace: {path}")
+
+        self._reject_symlink_path(candidate, allowed_root)
+        return candidate
+
+    def _reject_symlink_path(self, candidate: Path, allowed_root: Path) -> None:
+        relative = candidate.relative_to(allowed_root)
+        current = allowed_root
+        for part in relative.parts:
+            current = current / part
+            if current.exists() and current.is_symlink():
+                raise ValueError(f"Symlink save path is not allowed: {candidate}")
