@@ -4,9 +4,11 @@ ollama_base_url: http://localhost:11434
 
 paths:
   docs_workspace: docs_workspace
+  world_workspace: world_workspace
   source_docs: source_docs
   chroma: storage/chroma
   snapshots: storage/snapshots
+  branches: storage/branches
   reports: storage/reports
   conversations: storage/conversations
   pending: storage/pending

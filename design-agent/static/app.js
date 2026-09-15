@@ -10,9 +10,39 @@ function appendMessage(role, content) {
   label.textContent = role === "user" ? "User" : "Agent";
   const pre = document.createElement("pre");
   pre.textContent = content;
-  article.append(label, pre);
+  const copyButton = createCopyButton();
+  article.append(label, copyButton, pre);
   messages.append(article);
   messages.scrollTop = messages.scrollHeight;
+}
+
+function createCopyButton() {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "copy-message";
+  button.textContent = "복사";
+  return button;
+}
+
+async function copyMessage(button) {
+  const message = button.closest(".message");
+  const pre = message?.querySelector("pre");
+  if (!pre) return;
+  const text = pre.textContent || "";
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = "복사됨";
+  } catch (_error) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    button.textContent = "선택됨";
+  }
+  window.setTimeout(() => {
+    button.textContent = "복사";
+  }, 1200);
 }
 
 function collectDataTablePayload(form) {
@@ -53,6 +83,12 @@ function createDataRow(table) {
 }
 
 document.addEventListener("click", (event) => {
+  const copyButton = event.target.closest(".copy-message");
+  if (copyButton) {
+    copyMessage(copyButton);
+    return;
+  }
+
   const deleteButton = event.target.closest(".delete-row");
   if (deleteButton) {
     deleteButton.closest("tr")?.remove();
@@ -100,6 +136,14 @@ document.addEventListener("submit", async (event) => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "요청 실패");
+      if (data.session_id) {
+        form.querySelector("input[name='session_id']").value = data.session_id;
+        const chatLayout = document.querySelector(".chat-layout");
+        if (chatLayout) chatLayout.dataset.sessionId = data.session_id;
+        if (window.location.pathname === "/chat") {
+          window.history.replaceState(null, "", `/chat/${data.session_id}`);
+        }
+      }
       appendMessage("assistant", data.reply);
       if (data.has_pending_change) {
         window.location.href = `/chat/${data.session_id}`;

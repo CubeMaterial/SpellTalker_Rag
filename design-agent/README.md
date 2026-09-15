@@ -82,7 +82,9 @@ python main.py ui
 - `/chat`: 한글 textarea로 기획 아이디어 입력, 변경 계획 생성, diff 확인
 - `/chat`: 세션별 대화, 상태 질문, 아이디어 충돌 검토, 명시적 문서 반영 요청 처리
 - `/diff`: 기존 단발 pending 변경 저장 또는 폐기
+- `/world`: 게임별 GDD와 분리된 재사용 세계관 정리, 질문, 적합성 검토
 - `/docs`: `docs_workspace/`, `source_docs/`, `storage/reports/` Markdown 문서 읽기 전용 보기
+- `/workspace`: `docs_workspace/` 백업 생성/복원, 브랜치 생성/전환
 - `/data`: `data_sources/` 아래 CSV를 표로 확인/수정하고 Unity용 JSON으로 export
 - `Build GDD`: `source_docs/` 기반 GDD 초안 생성
 - `Index`: 문서 인덱싱
@@ -129,3 +131,18 @@ export 형식은 Unity에서 읽기 쉬운 wrapper 구조다.
   "items": []
 }
 ```
+
+## Workspace Backup & Branches
+
+웹 UI의 `/workspace`에서 현재 `docs_workspace/`를 백업하거나, 백업을 다시 불러올 수 있다.
+백업을 불러오기 전에는 현재 상태를 새 백업으로 먼저 저장한다.
+
+브랜치는 Git 저장소 전체가 아니라 `docs_workspace/`만 복사해서 관리하는 가벼운 작업공간 분기다.
+새 브랜치를 만들면 현재 문서 상태가 `storage/branches/{branch}`에 저장되고, 브랜치 전환 시 현재 브랜치를 저장한 뒤 선택한 브랜치 내용을 `docs_workspace/`로 불러온다.
+
+## Worldbuilding Mode
+
+웹 UI의 `/world`는 게임별 GDD와 분리된 재사용 세계관을 관리한다.
+자유롭게 쓴 세계관 메모를 `world_workspace/World_Bible.md`로 정리하고, 나중에 다른 게임 제작 시 이 파일만 가져가 공통 세계관으로 사용할 수 있다.
+
+이 화면에서는 World Bible을 근거로 세계관 질문에 답하거나, 새 게임 설정이 기존 세계관과 맞는지 검토할 수 있다.

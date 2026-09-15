@@ -15,7 +15,10 @@
   </aside>
   <article class="doc-view panel">
     {% if selected_content %}
-      <h1>{{ selected_path }}</h1>
+      <div class="doc-view-header">
+        <h1>{{ selected_path }}</h1>
+        <a class="secondary-link" href="/docs">문서 목록으로</a>
+      </div>
       <pre class="markdown">{{ selected_content }}</pre>
     {% else %}
       <h1>문서 보기</h1>
@@ -24,4 +27,3 @@
   </article>
 </section>
 {% endblock %}
-

@@ -21,15 +21,23 @@ from app.settings import PROJECT_ROOT, Settings
 from app.source_gdd_builder import SourceGddBuilder
 from app.validators import ConsistencyChecker
 from app.web_models import PendingChange, PendingFile
+from app.workspace_versions import WorkspaceVersions
+from app.worldbuilding import WorldbuildingService
 
 
-app = FastAPI(title="SpellTalker Design Agent")
+app = FastAPI(
+    title="SpellTalker Design Agent",
+    docs_url="/api-docs",
+    redoc_url="/api-redoc",
+)
 app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "static"), name="static")
 templates = Jinja2Templates(directory=PROJECT_ROOT / "templates")
 
 settings = Settings()
 manager = DocumentManager(settings)
 data_manager = DataTableManager(settings)
+workspace_versions = WorkspaceVersions(settings)
+worldbuilding = WorldbuildingService(settings)
 pending_change: PendingChange | None = None
 flash_message = ""
 conversation_store = ConversationStore(settings)
@@ -67,6 +75,7 @@ def safe_doc_path(raw_path: str) -> Path:
     candidate = (PROJECT_ROOT / decoded).resolve()
     allowed_roots = [
         settings.docs_workspace.resolve(),
+        settings.world_workspace.resolve(),
         settings.source_docs.resolve(),
         settings.reports_path.resolve(),
     ]
@@ -125,6 +134,7 @@ def markdown_docs() -> list[dict[str, str]]:
     roots = [
         ("GDD", settings.docs_workspace / "GDD"),
         ("Dev", settings.docs_workspace / "Dev"),
+        ("World", settings.world_workspace),
         ("Source", settings.source_docs),
         ("Reports", settings.reports_path),
     ]
@@ -152,13 +162,17 @@ def home(request: Request) -> HTMLResponse:
 @app.get("/chat", response_class=HTMLResponse)
 def chat_page(request: Request) -> HTMLResponse:
     message = clear_flash()
-    conversation = conversation_store.create()
+    sessions = conversation_store.list_sessions()
+    conversation = conversation_store.get(sessions[0]["session_id"]) if sessions else {
+        "session_id": "",
+        "messages": [],
+    }
     return render(
         request,
         "chat.html",
         active="chat",
         flash_message=message,
-        sessions=conversation_store.list_sessions(),
+        sessions=sessions,
         conversation=conversation,
         session_pending=None,
     )
@@ -354,6 +368,139 @@ def doc_detail(request: Request, doc_path: str) -> HTMLResponse:
         selected_path=path.relative_to(PROJECT_ROOT).as_posix(),
         selected_content=path.read_text(encoding="utf-8"),
     )
+
+
+@app.get("/workspace", response_class=HTMLResponse)
+def workspace_page(request: Request) -> HTMLResponse:
+    message = clear_flash()
+    return render(
+        request,
+        "workspace.html",
+        active="workspace",
+        flash_message=message,
+        snapshots=workspace_versions.list_snapshots(),
+        branches=workspace_versions.list_branches(),
+        active_branch=workspace_versions.active_branch(),
+    )
+
+
+@app.get("/world", response_class=HTMLResponse)
+def world_page(request: Request) -> HTMLResponse:
+    message = clear_flash()
+    return render(
+        request,
+        "world.html",
+        active="world",
+        flash_message=message,
+        bible_content=worldbuilding.read_bible(),
+        bible_path=worldbuilding.bible_path.relative_to(PROJECT_ROOT).as_posix(),
+    )
+
+
+@app.post("/world/organize", response_class=HTMLResponse)
+def organize_world(request: Request, raw_text: str = Form(...)) -> HTMLResponse:
+    try:
+        result = worldbuilding.organize_and_save(raw_text)
+        return render(
+            request,
+            "world.html",
+            active="world",
+            flash_message=f"세계관을 정리해 저장했습니다: {result.saved_path.relative_to(PROJECT_ROOT).as_posix()}",
+            bible_content=result.content,
+            bible_path=result.saved_path.relative_to(PROJECT_ROOT).as_posix(),
+            world_diff=result.diff,
+            raw_text=raw_text,
+        )
+    except Exception as exc:
+        return render(
+            request,
+            "world.html",
+            active="world",
+            flash_message=f"세계관 정리 실패: {exc}",
+            bible_content=worldbuilding.read_bible(),
+            bible_path=worldbuilding.bible_path.relative_to(PROJECT_ROOT).as_posix(),
+            raw_text=raw_text,
+        )
+
+
+@app.post("/world/ask", response_class=HTMLResponse)
+def ask_world(request: Request, question: str = Form(...)) -> HTMLResponse:
+    try:
+        answer = worldbuilding.answer(question)
+        flash = "세계관 문서를 기준으로 답했습니다."
+    except Exception as exc:
+        answer = f"오류: {exc}"
+        flash = "세계관 질문 처리 실패"
+    return render(
+        request,
+        "world.html",
+        active="world",
+        flash_message=flash,
+        bible_content=worldbuilding.read_bible(),
+        bible_path=worldbuilding.bible_path.relative_to(PROJECT_ROOT).as_posix(),
+        question=question,
+        world_answer=answer,
+    )
+
+
+@app.post("/world/check", response_class=HTMLResponse)
+def check_world_fit(request: Request, setting_text: str = Form(...)) -> HTMLResponse:
+    try:
+        report = worldbuilding.check_fit(setting_text)
+        flash = "세계관 적합성을 검토했습니다."
+    except Exception as exc:
+        report = f"오류: {exc}"
+        flash = "세계관 적합성 검토 실패"
+    return render(
+        request,
+        "world.html",
+        active="world",
+        flash_message=flash,
+        bible_content=worldbuilding.read_bible(),
+        bible_path=worldbuilding.bible_path.relative_to(PROJECT_ROOT).as_posix(),
+        setting_text=setting_text,
+        world_check=report,
+    )
+
+
+@app.post("/workspace/snapshot")
+def create_workspace_snapshot() -> RedirectResponse:
+    try:
+        snapshot = workspace_versions.create_snapshot()
+        set_flash(f"백업을 만들었습니다: {snapshot.name}")
+    except Exception as exc:
+        set_flash(f"백업 생성 실패: {exc}")
+    return RedirectResponse("/workspace", status_code=303)
+
+
+@app.post("/workspace/snapshots/{snapshot_name}/restore")
+def restore_workspace_snapshot(snapshot_name: str) -> RedirectResponse:
+    try:
+        safety_snapshot = workspace_versions.restore_snapshot(snapshot_name)
+        set_flash(f"{snapshot_name} 백업을 불러왔습니다. 이전 상태는 {safety_snapshot.name}에 저장했습니다.")
+    except Exception as exc:
+        set_flash(f"백업 불러오기 실패: {exc}")
+    return RedirectResponse("/workspace", status_code=303)
+
+
+@app.post("/workspace/branches")
+def create_workspace_branch(name: str = Form(...)) -> RedirectResponse:
+    try:
+        branch = workspace_versions.create_branch(name)
+        set_flash(f"브랜치를 만들었습니다: {branch.name}")
+    except Exception as exc:
+        set_flash(f"브랜치 생성 실패: {exc}")
+    return RedirectResponse("/workspace", status_code=303)
+
+
+@app.post("/workspace/branches/{branch_name}/switch")
+def switch_workspace_branch(branch_name: str) -> RedirectResponse:
+    try:
+        safety_snapshot = workspace_versions.switch_branch(branch_name)
+        set_flash(f"{branch_name} 브랜치로 전환했습니다. 이전 상태는 {safety_snapshot.name}에 저장했습니다.")
+    except Exception as exc:
+        set_flash(f"브랜치 전환 실패: {exc}")
+    return RedirectResponse("/workspace", status_code=303)
 
 
 @app.get("/data", response_class=HTMLResponse)

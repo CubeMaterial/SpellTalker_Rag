@@ -32,9 +32,11 @@ class Settings:
 
         paths = data.get("paths", {})
         self.docs_workspace = self._path(paths.get("docs_workspace", "docs_workspace"))
+        self.world_workspace = self._path(paths.get("world_workspace", "world_workspace"))
         self.source_docs = self._path(paths.get("source_docs", "source_docs"))
         self.chroma_path = self._path(paths.get("chroma", "storage/chroma"))
         self.snapshots_path = self._path(paths.get("snapshots", "storage/snapshots"))
+        self.branches_path = self._path(paths.get("branches", "storage/branches"))
         self.reports_path = self._path(paths.get("reports", "storage/reports"))
         self.conversations_path = self._path(paths.get("conversations", "storage/conversations"))
         self.pending_path = self._path(paths.get("pending", "storage/pending"))

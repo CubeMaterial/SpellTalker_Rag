@@ -29,7 +29,7 @@ class ConversationAgent:
         conversation = self.store.get(session_id)
 
         intent = self.intent_classifier.classify(message, write_mode=write_mode)
-        if intent in {UserIntent.CHANGE_REQUEST, UserIntent.DOC_WRITE}:
+        if intent in {UserIntent.CHANGE_REQUEST, UserIntent.DOC_WRITE, UserIntent.DOC_REORGANIZE}:
             reply, pending_change = self._handle_change_request(conversation, message)
             self.pending.save(session_id, pending_change)
             has_pending = True
@@ -188,6 +188,36 @@ diff를 확인한 뒤 승인하면 snapshot을 만들고 저장한다.
 
 {docs}
 """
+        if intent == UserIntent.DOC_REORGANIZE:
+            targets = self._recommended_reorganize_targets(message)
+            return f"""## 질문 이해
+
+특정 GDD 문서에 잘못 섞여 들어간 내용을 원래 책임에 맞는 문서로 분리하려는 요청으로 이해했습니다.
+
+## 내 의견
+
+이건 새 기획 검토가 아니라 문서 구조 정리 작업입니다.
+원본 문서에서 룬/스펠과 직접 관련 없는 항목을 빼고, 전투 흐름, 상태 효과, 적 행동, 보상, 맵 같은 책임별 문서로 옮기는 방식이 맞습니다.
+
+## 추천 분리 기준
+
+- 룬 덱, 룬 핸드, 룬 조합: `docs_workspace/GDD/05_Rune_System.md`
+- 스펠 예약, 캐스팅, 발동: `docs_workspace/GDD/06_Spell_System.md`
+- HP, 전투 시작/종료, 턴 흐름: `docs_workspace/GDD/03_Combat_System.md`
+- 버프/디버프/부상: `docs_workspace/GDD/07_Status_Effects.md`
+- 적 행동 예고와 적 액션: `docs_workspace/GDD/10_Enemy_Design.md`
+- 보상, 골드, 카드 보상: `docs_workspace/GDD/13_Reward_System.md`
+- 맵 복귀와 노드 진행: `docs_workspace/GDD/12_Map_System.md`
+
+## 문서 반영 여부
+
+문서 반영 요청으로 처리할 수 있습니다.
+저장 전에 diff를 확인한 뒤 승인하면 snapshot을 만들고 저장합니다.
+
+근거:
+
+{self._bullets(targets, docs)}
+"""
         return f"""## 질문 이해
 
 질문은 단순히 문서 위치를 찾는 것이 아니라, 현재 기획 판단을 어떻게 잡아야 하는지 묻는 것으로 이해했습니다.
@@ -271,4 +301,21 @@ SpellTalker의 재미는 카드, 룬, 스펠, 액션이 각자 다른 역할을 
             targets.append("`docs_workspace/GDD/16_UI_UX.md`")
         targets.append("`docs_workspace/GDD/17_Balance_Rules.md`")
         targets.append("`docs_workspace/GDD/99_TODO.md`")
+        return list(dict.fromkeys(targets))
+
+    def _recommended_reorganize_targets(self, message: str) -> list[str]:
+        lowered = message.lower()
+        targets = ["`docs_workspace/GDD/05_Rune_System.md`"]
+        if any(keyword in lowered for keyword in ["스펠", "spell", "캐스팅", "예약"]):
+            targets.append("`docs_workspace/GDD/06_Spell_System.md`")
+        if any(keyword in lowered for keyword in ["hp", "체력", "전투", "능력치", "스탯", "턴"]):
+            targets.append("`docs_workspace/GDD/03_Combat_System.md`")
+        if any(keyword in lowered for keyword in ["버프", "디버프", "부상", "상태"]):
+            targets.append("`docs_workspace/GDD/07_Status_Effects.md`")
+        if any(keyword in lowered for keyword in ["적", "enemy"]):
+            targets.append("`docs_workspace/GDD/10_Enemy_Design.md`")
+        if any(keyword in lowered for keyword in ["보상", "골드", "reward"]):
+            targets.append("`docs_workspace/GDD/13_Reward_System.md`")
+        if any(keyword in lowered for keyword in ["맵", "map", "노드"]):
+            targets.append("`docs_workspace/GDD/12_Map_System.md`")
         return list(dict.fromkeys(targets))

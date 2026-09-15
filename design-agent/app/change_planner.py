@@ -7,17 +7,18 @@ from app.settings import Settings
 
 
 KEYWORD_TARGETS = [
+    (["층", "지상", "지하", "진행", "경로", "방향", "분기", "루프"], "GDD/02_Core_Loop.md"),
+    (["맵", "노드", "map", "node", "층", "지상", "지하", "경로", "방향", "분기"], "GDD/12_Map_System.md"),
     (["룬", "rune"], "GDD/05_Rune_System.md"),
     (["스펠", "spell", "주문"], "GDD/06_Spell_System.md"),
     (["카드", "card", "덱", "deck"], "GDD/04_Card_System.md"),
-    (["전투", "combat", "battle", "피해", "공격"], "GDD/03_Combat_System.md"),
+    (["전투", "combat", "battle", "피해", "공격", "hp", "체력", "능력치", "스탯", "stats"], "GDD/03_Combat_System.md"),
     (["상태", "버프", "디버프", "부상", "status", "buff", "debuff"], "GDD/07_Status_Effects.md"),
     (["유물", "relic"], "GDD/08_Relic_System.md"),
     (["캐릭터", "character"], "GDD/09_Character_Design.md"),
-    (["적", "enemy", "몬스터"], "GDD/10_Enemy_Design.md"),
     (["보스", "boss"], "GDD/11_Boss_Design.md"),
-    (["맵", "노드", "map", "node"], "GDD/12_Map_System.md"),
-    (["보상", "reward"], "GDD/13_Reward_System.md"),
+    (["적", "enemy", "몬스터"], "GDD/10_Enemy_Design.md"),
+    (["보상", "reward", "골드"], "GDD/13_Reward_System.md"),
     (["상점", "휴식", "이벤트", "shop", "rest", "event"], "GDD/14_Shop_Rest_Event.md"),
     (["세계관", "codex", "world", "lore"], "GDD/15_Codex_World.md"),
     (["ui", "ux", "화면", "입력", "출력"], "GDD/16_UI_UX.md"),
@@ -68,9 +69,10 @@ class ChangePlanner:
 
     def _select_targets(self, markdown: str, idea: str, context_rows: list[dict[str, str]]) -> list[str]:
         candidates = []
-        candidates.extend(self._extract_targets(markdown))
+        keyword_targets = self._keyword_targets(idea)
+        candidates.extend(keyword_targets)
         candidates.extend(self._context_targets(context_rows))
-        candidates.extend(self._keyword_targets(idea))
+        candidates.extend(self._extract_targets(markdown))
 
         include_todo = self._needs_todo(idea, markdown)
         include_balance = self._needs_balance(idea, markdown)
@@ -83,7 +85,7 @@ class ChangePlanner:
             filtered.append(target)
         filtered = self._dedupe(filtered)
         if not filtered:
-            filtered = self._keyword_targets(idea) or ["GDD/99_TODO.md"]
+            filtered = keyword_targets or ["GDD/99_TODO.md"]
         max_targets = 5 if self._is_large_change(idea, markdown) else 3
         return filtered[:max_targets]
 
@@ -113,7 +115,10 @@ class ChangePlanner:
 
     def _is_large_change(self, idea: str, markdown: str) -> bool:
         lowered = self._semantic_text(idea, markdown)
-        return any(keyword in lowered for keyword in ["대규모", "전체", "전반", "시스템 변경", "rework", "전체 구조"])
+        return any(
+            keyword in lowered
+            for keyword in ["대규모", "전체", "전반", "시스템 변경", "rework", "전체 구조", "맵", "층", "지상", "지하", "분기", "보스"]
+        )
 
     def _semantic_text(self, idea: str, markdown: str) -> str:
         text = f"{idea}\n{markdown}".lower()
@@ -130,23 +135,35 @@ class ChangePlanner:
         return ordered
 
     def _fallback_plan(self, idea: str) -> str:
+        targets = self._keyword_targets(idea)
+        if not targets:
+            targets = ["GDD/99_TODO.md"]
+        target_lines = "\n".join(f"- {target}" for target in targets[:5])
+        lowered = idea.lower()
+        if any(keyword in lowered for keyword in ["맵", "층", "지상", "지하", "경로", "방향", "분기", "보스"]):
+            change_lines = """- 맵의 층 구조, 진행 방향, 분기 조건을 기획 규칙으로 기록
+- 보스 처치 여부에 따른 다음 층 진입 조건을 정리
+- 지상/지하 분기와 엔딩 조건을 TODO 또는 확정 규칙으로 분리"""
+            conflict_lines = """- 층 이동 조건과 보스 처치 조건의 우선순위 확인 필요
+- 지상 4층 진입과 지하 분기 조건이 UI/맵 노드 표현과 충돌하지 않는지 확인 필요
+- 진 엔딩 조건이 일반 클리어 조건과 혼동되지 않도록 명칭 정리 필요"""
+        else:
+            change_lines = """- 사용자 아이디어를 관련 GDD 문서에 기획 후보로 기록
+- 구체 수치와 실패 판정은 TODO로 보류
+- 관련 시스템과의 충돌 검토 항목 추가"""
+            conflict_lines = """- 기존 핵심 루프와 책임 범위 충돌 여부 확인 필요
+- UI 표시와 실제 규칙 적용 위치 분리 필요
+- 반복 최적해 또는 예외 처리 누락 여부 확인 필요"""
         return f"""## 변경 계획
 
 ### 수정 대상
-- GDD/05_Rune_System.md
-- GDD/06_Spell_System.md
-- GDD/17_Balance_Rules.md
-- GDD/99_TODO.md
+{target_lines}
 
 ### 변경 내용
-- 사용자 아이디어를 신규 룬, 스펠, 조합 규칙 후보로 기록
-- 구체 수치와 실패 판정은 TODO로 보류
-- 관련 밸런스 검토 항목 추가
+{change_lines}
 
 ### 충돌 가능성
-- 단일 조합 반복 최적해 위험
-- 마나 비용과 획득량 검증 필요
-- 기존 룬 조합 규칙과 명칭 충돌 여부 확인 필요
+{conflict_lines}
 
 ### 원문 아이디어
 {idea}

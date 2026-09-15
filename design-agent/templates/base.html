@@ -12,7 +12,9 @@
     <nav>
       <a class="{{ 'active' if active == 'home' else '' }}" href="/">Home</a>
       <a class="{{ 'active' if active == 'chat' else '' }}" href="/chat">Chat</a>
+      <a class="{{ 'active' if active == 'world' else '' }}" href="/world">World</a>
       <a class="{{ 'active' if active == 'docs' else '' }}" href="/docs">Documents</a>
+      <a class="{{ 'active' if active == 'workspace' else '' }}" href="/workspace">Workspace</a>
       <a class="{{ 'active' if active == 'data' else '' }}" href="/data">Data Tables</a>
       <form method="post" action="/build-gdd-from-source"><button type="submit">Build GDD</button></form>
       <form method="post" action="/index"><button type="submit">Index</button></form>

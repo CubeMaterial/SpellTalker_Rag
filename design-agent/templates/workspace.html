@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>작업공간 관리</h1>
+  <dl class="meta">
+    <dt>현재 브랜치</dt>
+    <dd>{{ active_branch }}</dd>
+    <dt>문서 작업공간</dt>
+    <dd>{{ settings.docs_workspace }}</dd>
+    <dt>백업 저장소</dt>
+    <dd>{{ settings.snapshots_path }}</dd>
+  </dl>
+</section>
+
+<section class="workspace-layout">
+  <article class="panel workspace-panel">
+    <div class="button-row spread">
+      <h2>백업</h2>
+      <form method="post" action="/workspace/snapshot">
+        <button type="submit">현재 문서 백업</button>
+      </form>
+    </div>
+    {% if snapshots %}
+      <div class="version-list">
+        {% for snapshot in snapshots %}
+          <div class="version-row">
+            <div>
+              <strong>{{ snapshot.name }}</strong>
+              <span>{{ snapshot.updated_at }} · {{ snapshot.file_count }} files</span>
+            </div>
+            <form method="post" action="/workspace/snapshots/{{ snapshot.name }}/restore" onsubmit="return confirm('현재 문서 상태를 백업한 뒤 이 백업을 불러올까요?');">
+              <button class="secondary" type="submit">불러오기</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">아직 저장된 백업이 없습니다.</p>
+    {% endif %}
+  </article>
+
+  <article class="panel workspace-panel">
+    <h2>브랜치</h2>
+    <form class="branch-form" method="post" action="/workspace/branches">
+      <input type="text" name="name" placeholder="feature_rune_balance" required>
+      <button type="submit">브랜치 만들기</button>
+    </form>
+    {% if branches %}
+      <div class="version-list">
+        {% for branch in branches %}
+          <div class="version-row">
+            <div>
+              <strong>{{ branch.name }}</strong>
+              {% if branch.active %}
+                <span>현재 작업 중 · {{ branch.file_count }} files</span>
+              {% else %}
+                <span>{{ branch.updated_at }} · {{ branch.file_count }} files</span>
+              {% endif %}
+            </div>
+            {% if branch.active %}
+              <button class="secondary" type="button" disabled>현재 브랜치</button>
+            {% else %}
+              <form method="post" action="/workspace/branches/{{ branch.name }}/switch" onsubmit="return confirm('현재 브랜치를 저장한 뒤 전환할까요?');">
+                <button class="secondary" type="submit">전환</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">아직 브랜치가 없습니다. 현재 문서 상태로 새 브랜치를 만들 수 있습니다.</p>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

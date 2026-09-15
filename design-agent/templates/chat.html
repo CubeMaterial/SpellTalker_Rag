@@ -30,6 +30,7 @@
       {% for message in conversation.messages %}
         <article class="message {{ message.role }}">
           <div class="message-role">{{ "User" if message.role == "user" else "Agent" }}</div>
+          <button type="button" class="copy-message">복사</button>
           <pre>{{ message.content }}</pre>
         </article>
       {% endfor %}

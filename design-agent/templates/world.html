@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>세계관 정리 모드</h1>
+  <dl class="meta">
+    <dt>World Bible</dt>
+    <dd>{{ bible_path }}</dd>
+    <dt>저장 방식</dt>
+    <dd>게임별 GDD와 분리된 재사용 세계관 문서</dd>
+  </dl>
+</section>
+
+<section class="world-layout">
+  <div class="world-tools">
+    <article class="panel">
+      <h2>세계관 메모 정리</h2>
+      <form class="stack" method="post" action="/world/organize">
+        <textarea name="raw_text" placeholder="생각하고 있는 세계관을 자유롭게 적어주세요. 역사, 세력, 지역, 금기, 마법 규칙, 다른 게임에서도 유지할 핵심 설정 등을 한 번에 써도 됩니다.">{{ raw_text or "" }}</textarea>
+        <button type="submit">정리해서 World Bible에 저장</button>
+      </form>
+    </article>
+
+    <article class="panel">
+      <h2>세계관 질문</h2>
+      <form class="stack" method="post" action="/world/ask">
+        <textarea name="question" placeholder="예: 이 세계에서 죽은 자가 다시 돌아올 수 있어?">{{ question or "" }}</textarea>
+        <button type="submit">세계관 기준으로 답변</button>
+      </form>
+      {% if world_answer %}
+        <pre class="markdown result-block">{{ world_answer }}</pre>
+      {% endif %}
+    </article>
+
+    <article class="panel">
+      <h2>설정 적합성 검토</h2>
+      <form class="stack" method="post" action="/world/check">
+        <textarea name="setting_text" placeholder="새 게임에 넣고 싶은 설정을 적으면 현재 세계관과 맞는지 검토합니다.">{{ setting_text or "" }}</textarea>
+        <button type="submit">세계관과 맞는지 검토</button>
+      </form>
+      {% if world_check %}
+        <pre class="markdown result-block">{{ world_check }}</pre>
+      {% endif %}
+    </article>
+  </div>
+
+  <article class="panel world-bible">
+    <div class="doc-view-header">
+      <h2>현재 World Bible</h2>
+      <a class="secondary-link" href="/docs/world_workspace/World_Bible.md">문서로 보기</a>
+    </div>
+    <pre class="markdown">{{ bible_content }}</pre>
+    {% if world_diff %}
+      <h2>이번 변경 Diff</h2>
+      <pre class="diff">{{ world_diff }}</pre>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}
